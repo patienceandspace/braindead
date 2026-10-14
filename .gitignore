@@ -1,0 +1,6 @@
+# Local Netlify folder
+.netlify
+
+# Editor / OS cruft
+.DS_Store
+.claude/settings.local.json

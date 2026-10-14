@@ -1,0 +1,1444 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Braindead</title>
+<style>
+  html,body{margin:0;overflow:hidden;background:#000;height:100%}
+  canvas#c{display:block}
+
+  #designer{
+    position:fixed;inset:0;z-index:10;overflow-y:auto;
+    background:rgba(3,0,10,0.82);backdrop-filter:blur(6px);
+    font-family:Georgia,serif;color:#eee;
+    transition:opacity 1.2s ease;
+  }
+  #designer.gone{opacity:0;pointer-events:none}
+  .dz{max-width:820px;margin:0 auto;padding:34px 20px 60px}
+  h1{
+    font-weight:normal;letter-spacing:0.4em;text-transform:uppercase;
+    font-size:17px;text-align:center;color:#fff;margin:0 0 4px;
+  }
+  .sub{
+    text-align:center;font-size:11px;letter-spacing:0.2em;color:#9b8fb8;
+    text-transform:uppercase;margin-bottom:26px;
+  }
+  .lane{display:flex;gap:10px;margin-bottom:14px;align-items:stretch}
+  .lane .side{width:150px;flex:none;display:flex;flex-direction:column;justify-content:space-between}
+  .lane .name{font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#cfc4e8}
+  .modes{display:flex;gap:4px}
+  .modes button{
+    font-family:inherit;font-size:9px;letter-spacing:0.1em;padding:3px 7px;
+    background:none;border:1px solid #4a3d66;color:#8a7da8;cursor:pointer;border-radius:3px;
+  }
+  .modes button.on{border-color:#c9b8ff;color:#e8ddff;background:rgba(150,120,255,0.12)}
+  .lane canvas{
+    flex:1;height:64px;border:1px solid #372c4e;border-radius:4px;
+    background:rgba(255,255,255,0.025);cursor:crosshair;touch-action:none;
+  }
+  .row{display:flex;gap:12px;justify-content:center;align-items:center;margin:30px 0 0;flex-wrap:wrap}
+  .row button,.row select,.row input{
+    font-family:inherit;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;
+    padding:12px 22px;border-radius:30px;font-size:12px;
+  }
+  #politeBtn{background:none;border:1px solid #7aa;color:#cee}
+  #fmsuBtn{
+    background:none;border:1px solid #f36;color:#f8a;
+    text-shadow:0 0 8px rgba(255,50,100,0.6);
+  }
+  #fmsuBtn:hover{background:rgba(255,30,90,0.15)}
+  #beginBtn{
+    background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.5);color:#fff;
+    animation:pulse 3s ease-in-out infinite;padding:14px 34px;
+  }
+  @keyframes pulse{0%,100%{opacity:0.6}50%{opacity:1}}
+  select,input[type=number]{background:#14101f;color:#cfc4e8;border:1px solid #4a3d66}
+  .hint{text-align:center;font-size:10px;letter-spacing:0.15em;color:#6a5f85;margin-top:22px;text-transform:uppercase}
+
+  /* ---- export panel ---- */
+  #exp{margin-top:34px;border-top:1px solid #2c2340;padding-top:22px}
+  #exp h2{
+    font-weight:normal;font-size:12px;letter-spacing:0.3em;text-transform:uppercase;
+    text-align:center;color:#cfc4e8;margin:0 0 16px;
+  }
+  .xrow{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .xrow label{font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#8a7da8}
+  .xrow select,.xrow input{padding:7px 12px;border-radius:5px;font-size:11px;letter-spacing:0.08em}
+  .xrow input{width:78px;text-transform:none}
+  .xbtn{
+    font-family:inherit;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;
+    padding:11px 20px;border-radius:30px;font-size:11px;
+    background:none;border:1px solid #6c8;color:#bfd;
+  }
+  .xbtn:hover{background:rgba(100,220,150,0.12)}
+  .xbtn[disabled]{opacity:0.35;cursor:default}
+  #xstat{
+    text-align:center;font-size:11px;color:#9b8fb8;margin-top:12px;min-height:16px;
+    font-family:monospace;letter-spacing:0.05em;
+  }
+  #xffmpeg{
+    display:none;margin:14px auto 0;max-width:640px;background:#0d0a16;border:1px solid #2c2340;
+    border-radius:6px;padding:12px 14px;font-family:monospace;font-size:10.5px;color:#8fb;
+    white-space:pre-wrap;word-break:break-all;line-height:1.6;
+  }
+  #xwarn{
+    display:none;text-align:center;font-size:10px;letter-spacing:0.12em;color:#c86;
+    text-transform:uppercase;margin-top:10px;
+  }
+  .xsep{
+    text-align:center;font-size:9px;letter-spacing:0.25em;color:#5d5378;
+    text-transform:uppercase;margin:18px 0 12px;
+  }
+  .xbtn.xvid{border-color:#a8f;color:#dbf}
+  .xbtn.xvid:hover{background:rgba(150,120,255,0.14)}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="designer">
+  <div class="dz">
+    <h1>Design Your Ride</h1>
+    <div class="sub">drag to sculpt &middot; auto = let it decide</div>
+    <div id="lanes"></div>
+    <div class="row">
+      <select id="durSel">
+        <option value="120">2 min loop</option>
+        <option value="300" selected>5 min loop</option>
+        <option value="600">10 min loop</option>
+        <option value="1800">30 min loop</option>
+      </select>
+      <button id="politeBtn">polite random</button>
+      <button id="fmsuBtn">fuck my shit up</button>
+      <button id="beginBtn">begin the ride</button>
+    </div>
+
+    <div id="exp">
+      <h2>Export</h2>
+      <div class="xrow">
+        <label for="xseed">Seed</label>
+        <input type="number" id="xseed" value="1" min="0" step="1">
+        <label for="xsize">Size</label>
+        <select id="xsize">
+          <option value="3840x2160" selected>4K &mdash; 3840&times;2160</option>
+          <option value="2560x1440">1440p &mdash; 2560&times;1440</option>
+          <option value="1920x1080">1080p &mdash; 1920&times;1080</option>
+          <option value="1080x1920">vertical &mdash; 1080&times;1920</option>
+        </select>
+        <label for="xfps">FPS</label>
+        <select id="xfps">
+          <option value="60" selected>60</option>
+          <option value="30">30</option>
+        </select>
+        <label for="xdur">Seconds</label>
+        <input type="number" id="xdur" value="30" min="1" step="1">
+        <label for="xfmt">Format</label>
+        <select id="xfmt">
+          <option value="png" selected>png &mdash; lossless master</option>
+          <option value="webp">webp &mdash; smaller, lossy</option>
+          <option value="jpeg">jpeg &mdash; fastest</option>
+        </select>
+      </div>
+      <div class="xrow">
+        <button class="xbtn" id="xestBtn">estimate</button>
+        <button class="xbtn" id="xframesBtn">export frames</button>
+        <button class="xbtn" id="xwavBtn">export wav</button>
+        <button class="xbtn" id="xcancelBtn" disabled>cancel</button>
+      </div>
+      <div class="xsep">or encode straight to one video file &mdash; smaller, never lossless</div>
+      <div class="xrow">
+        <label for="xcodec">Codec</label>
+        <select id="xcodec">
+          <option value="h264" selected>h.264 &mdash; recommended</option>
+          <option value="av1">av1 &mdash; smaller, slower</option>
+          <option value="vp9">vp9</option>
+        </select>
+        <label for="xmbps">Mbps</label>
+        <input type="number" id="xmbps" value="800" min="1" step="50">
+        <button class="xbtn xvid" id="xvidBtn">export video</button>
+      </div>
+      <div id="xstat"></div>
+      <div id="xffmpeg"></div>
+      <div id="xwarn">frame export needs chrome or edge (file system access api)</div>
+    </div>
+
+    <div class="hint">hold click: warp drive &middot; &larr;&rarr;: throttle &middot; D: reopen designer</div>
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+const RINGS = 60;
+const SEGMENTS = 64;
+const GLYPHS = 'ᚠᚱᛒᛗᛞᚦΔΘΞΨʘ∴⋈✧◬λж';
+const TAU = Math.PI*2;
+
+// Frames rendered before frame 0 so the motion trails are already built up
+// when an export (or the live ride) begins, instead of fading in from black.
+const PREROLL = 90;
+
+// Absolute pixel sizes below are authored against this height and scaled by
+// S = H/REF_H, so a 4K frame is the 1080p composition enlarged — not a 1080p
+// composition with hairline strokes stranded in a bigger canvas.
+const REF_H = 1080;
+
+// ============================================================================
+// DETERMINISM
+// Every random draw comes from a seeded PRNG so a given (seed, frame) always
+// produces the same image. This is what makes the preview and the exported
+// sequence identical, and what makes a ride reproducible.
+// ============================================================================
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let x = Math.imul(a ^ a >>> 15, 1 | a);
+    x = x + Math.imul(x ^ x >>> 7, 61 | x) ^ x;
+    return ((x ^ x >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+// ============================================================================
+// RIDE LANES
+// Every automated parameter is a "lane". AUTO = the engine's own organic
+// behavior. KEYS = user keyframe curve. LFO = user oscillator.
+// ============================================================================
+const LANES = [
+  {id:'speed',   label:'Speed',          def:0.5},
+  {id:'focus',   label:'Focal Drift',    def:0.4},
+  {id:'shake',   label:'Camera Shake',   def:0.3},
+  {id:'palette', label:'Color Flow',     def:0.4},
+  {id:'anomaly', label:'Ring Frequency', def:0.4},
+  {id:'chaos',   label:'Chaos',          def:0.3},
+  {id:'style',   label:'Ring Style',     def:0.1, stepped:8},
+  {id:'warp',    label:'Warp Drive',     def:0.0},
+];
+for(const L of LANES){
+  L.mode = 'auto';
+  L.keys = [{t:0, v:L.def}];
+  L.lfo  = {cycles:4, depth:0.5};
+}
+
+let rideDur = 300;   // seconds per loop
+let rideSeed = 1;
+
+function laneSample(L, u){
+  if(L.mode==='lfo')
+    return Math.min(1, Math.max(0, 0.5 + Math.sin(u*TAU*L.lfo.cycles)*L.lfo.depth*0.5));
+  const k = L.keys;
+  if(k.length===1) return k[0].v;
+  let a=k[k.length-1], b=k[0];
+  for(let i=0;i<k.length;i++){
+    if(k[i].t<=u && (i===k.length-1 || k[i+1].t>u)){ a=k[i]; b=k[i+1]||k[0]; break; }
+  }
+  if(u < k[0].t){ a=k[k.length-1]; b=k[0]; }
+  const span = (b.t - a.t + 1) % 1 || 1;
+  const frac = ((u - a.t + 1) % 1) / span;
+  return a.v + (b.v - a.v)*frac;
+}
+
+// lane value 0..1, or null when the lane is on AUTO
+function lane(id, u){
+  const L = LANES.find(l=>l.id===id);
+  return L.mode==='auto' ? null : laneSample(L, u);
+}
+
+// ============================================================================
+// MODULATORS
+// wt is a wall clock derived straight from the frame index. It must NOT be
+// derived from t: t's increment depends on drift(), so if drift() read t, a
+// zero speed would freeze t and with it the very oscillation that would bring
+// the speed back — a permanent dead stop. (This bug was real. Don't reopen it.)
+// ============================================================================
+function drift(wt, seed, freq, amp){
+  return Math.sin(wt*freq + seed)*amp
+       + Math.sin(wt*freq*1.618 + seed*2.1)*amp*0.5
+       + Math.sin(wt*freq*0.37  + seed*3.7)*amp*0.25;
+}
+function era(wt, freq, seed){ return Math.sin(wt*freq + seed); }
+
+// ============================================================================
+// SIMULATION STATE
+// Stepped exactly once per frame, in order. Resolution-independent: nothing in
+// here knows the pixel size, so one sim can drive a preview and a 4K export.
+// ============================================================================
+function makeSim(seed){
+  const rng = mulberry32(seed>>>0);
+  return {
+    rng,
+    t: 0,
+    warp: 0,
+    throttle: 1,
+    stars: Array.from({length:140},()=>({
+      a: rng()*TAU,
+      d: 0.15+rng()*0.85,
+      s: 0.5+rng()*1.5
+    })),
+    rings: Array.from({length:RINGS},()=>({style:0, seed:0, text:''})),
+    prevDepth: new Array(RINGS).fill(0),
+    depths: new Array(RINGS).fill(0),
+    anomalyCountdown: 4,
+    dominantStyle: 1 + Math.floor(rng()*8),
+    strayCountdown: 5 + Math.floor(rng()*6),
+    shiftCountdown: 25 + Math.floor(rng()*15),
+    // derived per frame, consumed by paint()
+    u:0, wt:0, hueBase:0, satBias:0, lobes:0, squish:0, deepPulse:0,
+    camXf:0, camYf:0, roll:0, zoom:1, focusXf:0, focusYf:0
+  };
+}
+
+function pickOther(sim, exclude){
+  let s; do{ s = 1 + Math.floor(sim.rng()*8); }while(s===exclude);
+  return s;
+}
+
+function assignAnomaly(sim, st, u){
+  const styleLane = lane('style', u);
+  if(styleLane!==null){
+    sim.dominantStyle = 1 + Math.floor(styleLane*7.999);
+  } else {
+    sim.shiftCountdown--;
+    if(sim.shiftCountdown<=0){
+      sim.dominantStyle  = pickOther(sim, sim.dominantStyle);
+      sim.shiftCountdown = 25 + Math.floor(sim.rng()*15);
+    }
+  }
+  const chaosLane = lane('chaos', u);
+  const strayScale = chaosLane===null ? 1 : (1.6 - chaosLane*1.45);
+  sim.strayCountdown--;
+  if(sim.strayCountdown<=0){
+    st.style = pickOther(sim, sim.dominantStyle);
+    sim.strayCountdown = Math.max(1, Math.round((5 + sim.rng()*6)*strayScale));
+  } else {
+    st.style = sim.dominantStyle;
+  }
+  st.seed = sim.rng()*1000;
+  if(st.style===6){
+    st.text = Array.from({length:18+Math.floor(sim.rng()*10)},
+      ()=>GLYPHS[Math.floor(sim.rng()*GLYPHS.length)]).join('');
+  }
+}
+
+function onRingRecycle(sim, st, u){
+  sim.anomalyCountdown--;
+  if(sim.anomalyCountdown<=0){
+    assignAnomaly(sim, st, u);
+    const chaosLane = lane('chaos', u);
+    const order = chaosLane===null ? (era(sim.wt,0.008,13)+1)/2 : 1-chaosLane;
+    const chaotic = 2+sim.rng()*12;
+    let gap = 6*order + chaotic*(1-order);
+    const freqLane = lane('anomaly', u);
+    if(freqLane!==null) gap *= Math.pow(6, 0.4-freqLane);
+    sim.anomalyCountdown = Math.max(1, Math.round(gap));
+  } else {
+    st.style = 0;
+  }
+}
+
+// Advance one frame. `dt` normalises to 60fps so a 30fps export moves through
+// the same amount of world per second. `live` enables mouse/keyboard input;
+// an export always runs with warp from its lane and throttle pinned at 1.
+function stepSim(sim, frame, fps, live){
+  const dt = 60/fps;
+  sim.wt = frame * 0.012 * dt;
+  sim.u  = (((frame/fps)/rideDur) % 1 + 1) % 1;
+  const u = sim.u, wt = sim.wt;
+
+  // --- warp ---
+  const WL = LANES.find(l=>l.id==='warp');
+  if(WL.mode==='auto'){
+    const tgt = live ? liveWarpTarget : 0;
+    sim.warp += (tgt - sim.warp) * (tgt > sim.warp ? 0.06 : 0.015) * dt;
+    sim.warp = Math.min(1, Math.max(0, sim.warp));
+  } else {
+    sim.warp = laneSample(WL, u);
+  }
+
+  // --- throttle ---
+  if(live) sim.throttle += (throttleTarget - sim.throttle)*0.04*dt;
+  else sim.throttle = 1;
+
+  // --- travel clock ---
+  const speedLane = lane('speed', u);
+  const speedMul = speedLane===null ? 1 : Math.pow(4, (speedLane-0.5)*2); // 0.25x..4x
+  const speed = Math.max(0.2, 1 + drift(wt, 40, 0.06, 0.7));
+  sim.t += 0.012 * dt * speed * (1 + sim.warp*9) * sim.throttle * speedMul;
+  const t = sim.t;
+
+  // --- eras ---
+  const palLane = lane('palette', u);
+  const palMul = palLane===null ? 1 : palLane*2.5;
+  sim.hueBase   = t*14*palMul + era(wt, 0.013, 5)*140;
+  sim.satBias   = 78 + era(wt, 0.021, 9)*22;
+  sim.lobes     = 6 + era(wt, 0.009, 2)*3;
+  sim.squish    = 0.85 + era(wt, 0.017, 7)*0.1;
+  sim.deepPulse = Math.max(0, era(wt, 0.031, 3));
+
+  // --- camera (stored as fractions of W/H so it is resolution-free) ---
+  const shakeLane = lane('shake', u);
+  const shakeMul = shakeLane===null ? 1 : shakeLane*3.33;
+  sim.camXf = drift(wt,0,0.11,0.018) + drift(wt,50,0.23,0.004*(1+sim.warp*6)*shakeMul);
+  sim.camYf = drift(wt,10,0.09,0.018) + drift(wt,60,0.19,0.004*(1+sim.warp*6)*shakeMul);
+  sim.roll  = drift(wt,20,0.07,0.018) + t*0.004*era(wt,0.005,1);
+  sim.zoom  = 1 + drift(wt,30,0.05,0.04) + sim.deepPulse*0.12 + sim.warp*0.25;
+
+  const focusLane = lane('focus', u);
+  const fMul = focusLane===null ? 1 : focusLane*2.5;
+  sim.focusXf = (drift(wt,70,0.043,0.10) + drift(wt,90, 0.013,0.05))*fMul;
+  sim.focusYf = (drift(wt,80,0.037,0.09) + drift(wt,100,0.011,0.05))*fMul;
+
+  // --- stars ---
+  for(const st of sim.stars){
+    st.d += 0.0018*st.s*dt*(1+sim.deepPulse*2+sim.warp*8);
+    if(st.d>1){ st.d=0.05; st.a=sim.rng()*TAU; }
+  }
+
+  // --- rings: detect the wrap back to the core and re-roll the style ---
+  for(let i=0;i<RINGS;i++){
+    const depth = (i/RINGS + t*0.15) % 1;
+    if(depth - sim.prevDepth[i] < -0.5) onRingRecycle(sim, sim.rings[i], u);
+    sim.prevDepth[i] = depth;
+    sim.depths[i] = depth;
+  }
+  sim.dt = dt;
+}
+
+// ============================================================================
+// PAINT
+// Draws the current sim state at any resolution. The caller's canvas keeps its
+// contents between frames — the translucent backdrop fill is what produces the
+// motion trails, so this is deliberately not a clean-slate render.
+// ============================================================================
+function paint(ctx, W, H, sim){
+  const S = H / REF_H;                 // scale absolute sizes to the output
+  const t = sim.t, wt = sim.wt;
+  const maxR = Math.hypot(W,H)/2;
+  const {squish, deepPulse, hueBase, satBias, lobes} = sim;
+
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = `rgba(0,0,${Math.floor(8+deepPulse*14)},0.25)`;
+  ctx.fillRect(0,0,W,H);
+
+  const focusX = sim.focusXf*W, focusY = sim.focusYf*H;
+
+  ctx.save();
+  ctx.translate(W/2 + sim.camXf*W, H/2 + sim.camYf*H);
+  ctx.rotate(sim.roll);
+  ctx.scale(sim.zoom, sim.zoom);
+
+  // starfield
+  ctx.shadowBlur = 0;
+  for(const st of sim.stars){
+    const r = st.d*st.d*maxR*1.2;
+    const sz = (st.s+st.d*2)*S;
+    ctx.globalAlpha = st.d*0.5;
+    ctx.fillStyle = `hsl(${(hueBase+180)%360},60%,85%)`;
+    ctx.fillRect(Math.cos(st.a)*r + focusX*(1-st.d),
+                 Math.sin(st.a)*r*squish + focusY*(1-st.d), sz, sz);
+  }
+  ctx.globalAlpha = 1;
+
+  for(let i=0;i<RINGS;i++){
+    const depth = sim.depths[i];
+    const radius = depth*depth*maxR;
+    if(radius < 1) continue;
+
+    const st = sim.rings[i];
+    let hue = (hueBase + i*8 + depth*era(wt,0.026,4)*60) % 360;
+    const wobble = Math.sin(t*2 + i*0.5) * 30 * depth * S;
+
+    let myLobes = lobes, rotDir = 1, segs = SEGMENTS;
+    if(st.style===2) hue = (hue+180)%360;
+    if(st.style===5) segs = 3+Math.floor(st.seed%4);
+    if(st.style===7) rotDir = -1;
+
+    const rot = rotDir*t*(1.5-depth) + i*0.1;
+
+    // style 6: a whispered transmission — glyphs orbit where the line would be
+    if(st.style===6){
+      ctx.shadowBlur = 0;
+      const n = st.text.length;
+      ctx.font = `${Math.max(6, (7+depth*26)*S)|0}px monospace`;
+      ctx.fillStyle = `hsl(${hue},30%,${70+depth*25}%)`;
+      ctx.globalAlpha = 0.4+depth*0.6;
+      for(let k=0;k<n;k++){
+        const ang = (k/n)*TAU + rot;
+        const rr = radius + Math.sin(ang*myLobes + t*4 + i)*20*depth*S;
+        ctx.save();
+        ctx.translate(Math.cos(ang)*rr + focusX*(1-depth),
+                      Math.sin(ang)*rr*squish + focusY*(1-depth));
+        ctx.rotate(ang+Math.PI/2);
+        ctx.fillText(st.text[k],0,0);
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+      continue;
+    }
+
+    ctx.beginPath();
+    for(let s=0;s<=segs;s++){
+      const ang = (s/segs)*TAU + rot;
+      let rr = radius + Math.sin(ang*myLobes + t*4 + i)*20*depth*S + wobble*Math.cos(ang*3+t);
+      if(st.style===3) rr += Math.sign(Math.sin(ang*23+st.seed))*12*depth*S;
+      const x = Math.cos(ang)*rr + focusX*(1-depth);
+      const y = Math.sin(ang)*rr*squish + focusY*(1-depth);
+      if(s===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+
+    ctx.setLineDash([]);
+    ctx.lineDashOffset = 0;
+    ctx.lineCap = 'butt';
+    let light = 50+depth*30, sat = satBias, width = (2+depth*4)*S, alpha = 1;
+    switch(st.style){
+      case 1: // ghost
+        sat = 10; light = 85; width = 1*S; alpha = 0.55;
+        ctx.setLineDash([6*S,10*S]); break;
+      case 2: // complement flare
+        width *= 1.8; light = Math.min(75, light+12); break;
+      case 8: { // failing neon
+        const buzz = Math.sin(wt*47 + st.seed)*Math.sin(wt*13.7 + st.seed*2);
+        const dying = sim.rng() < 0.04*sim.dt;
+        alpha = dying ? 0.05 : 0.35 + Math.abs(buzz)*0.65;
+        light = 60 + buzz*15;
+        sat = 60;
+        ctx.setLineDash([(30+((st.seed*7)%40))*S, (8+((st.seed*3)%20))*S]);
+        ctx.lineDashOffset = Math.floor(wt*8)*17*S;
+        break;
+      }
+    }
+
+    ctx.globalAlpha = alpha;
+    ctx.lineWidth = width;
+    ctx.shadowColor = `hsl(${hue},100%,60%)`;
+    ctx.shadowBlur = (15+deepPulse*20+sim.warp*30)*depth*S;
+
+    if(st.style===4){ // chromatic echo
+      const off = 4*depth*S;
+      ctx.shadowBlur = 0; ctx.globalAlpha = 0.7;
+      ctx.strokeStyle = `hsl(0,100%,60%)`;
+      ctx.save(); ctx.translate(-off,0); ctx.stroke(); ctx.restore();
+      ctx.strokeStyle = `hsl(180,100%,60%)`;
+      ctx.save(); ctx.translate(off,0); ctx.stroke(); ctx.restore();
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.strokeStyle = `hsl(${hue},${sat}%,${light}%)`;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+// Bake the warp inversion into pixels. Matches CSS invert(a) exactly:
+// difference-blending white at alpha a gives (1-a)*dst + a*(1-dst).
+function applyInvert(ctx, W, H, amt){
+  if(amt <= 0.001) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'difference';
+  ctx.globalAlpha = Math.min(1, amt);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0,0,W,H);
+  ctx.restore();
+}
+
+// ============================================================================
+// LIVE PREVIEW
+// ============================================================================
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let w,h;
+function resize(){
+  w = canvas.width = window.innerWidth;
+  h = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+let liveWarpTarget = 0;
+let throttleTarget = 1;
+let liveSim = makeSim(rideSeed);
+let liveFrame = -PREROLL;
+
+function frameLoop(){
+  stepSim(liveSim, liveFrame, 60, true);
+  paint(ctx, w, h, liveSim);
+  // The preview inverts via CSS (identical math to applyInvert) so the canvas
+  // keeps un-inverted pixels and the trails don't feed back on themselves.
+  canvas.style.filter = liveSim.warp > 0.01 ? `invert(${liveSim.warp})` : '';
+  liveFrame++;
+  requestAnimationFrame(frameLoop);
+}
+frameLoop();
+
+function resetRide(){
+  rideSeed = +document.getElementById('xseed').value || 0;
+  liveSim = makeSim(rideSeed);
+  liveFrame = -PREROLL;
+  ctx.fillStyle = '#000'; ctx.fillRect(0,0,w,h);
+}
+
+// ============================================================================
+// AUDIO — shared core
+// The drone bed, filter and delay network are identical live and offline; only
+// the event scheduling differs (setTimeout vs. precomputed absolute times).
+// ============================================================================
+const ROOT = 55; // A1 — deep space root
+
+function buildCore(ac, rng){
+  const master = ac.createGain();
+  master.gain.value = 0;
+  master.gain.linearRampToValueAtTime(0.55, 8);
+
+  const lp = ac.createBiquadFilter();
+  lp.type='lowpass'; lp.frequency.value=900; lp.Q.value=0.7;
+  const lpLFO = ac.createOscillator(); lpLFO.frequency.value=0.017;
+  const lpAmt = ac.createGain(); lpAmt.gain.value=520;
+  lpLFO.connect(lpAmt).connect(lp.frequency); lpLFO.start();
+
+  const delayL = ac.createDelay(2); delayL.delayTime.value=0.41;
+  const delayR = ac.createDelay(2); delayR.delayTime.value=0.53;
+  const fbL = ac.createGain(); fbL.gain.value=0.42;
+  const fbR = ac.createGain(); fbR.gain.value=0.42;
+  const panL = ac.createStereoPanner(); panL.pan.value=-0.7;
+  const panR = ac.createStereoPanner(); panR.pan.value=0.7;
+  delayL.connect(fbL).connect(delayR); delayR.connect(fbR).connect(delayL);
+  delayL.connect(panL).connect(ac.destination);
+  delayR.connect(panR).connect(ac.destination);
+
+  lp.connect(master);
+  master.connect(ac.destination);
+  master.connect(delayL);
+
+  const rootOscs = [];
+  const intervals = [1, 1.5, 2, 3, 4.04, 6.01];
+  intervals.forEach((ratio,i)=>{
+    const o = ac.createOscillator();
+    o.type = i<2 ? 'sawtooth' : 'triangle';
+    o.frequency.value = ROOT*ratio;
+    rootOscs.push({osc:o, ratio});
+    o.detune.value = (rng()-0.5)*14;
+    const g = ac.createGain();
+    g.gain.value = 0.14/(1+i*0.6);
+    const swell = ac.createOscillator();
+    swell.frequency.value = 0.008 + rng()*0.02;
+    const swellAmt = ac.createGain();
+    swellAmt.gain.value = g.gain.value*0.7;
+    swell.connect(swellAmt).connect(g.gain);
+    swell.start(rng()*5);
+    const wander = ac.createOscillator();
+    wander.frequency.value = 0.005+rng()*0.01;
+    const wanderAmt = ac.createGain(); wanderAmt.gain.value = 9;
+    wander.connect(wanderAmt).connect(o.detune); wander.start();
+    o.connect(g).connect(lp);
+    o.start();
+  });
+
+  const sub = ac.createOscillator(); sub.type='sine'; sub.frequency.value=ROOT/2;
+  rootOscs.push({osc:sub, ratio:0.5});
+  const subG = ac.createGain(); subG.gain.value=0.10;
+  const subLFO = ac.createOscillator(); subLFO.frequency.value=0.02;
+  const subAmt = ac.createGain(); subAmt.gain.value=0.07;
+  subLFO.connect(subAmt).connect(subG.gain); subLFO.start();
+  sub.connect(subG).connect(master); sub.start();
+
+  return {master, lp, delayL, delayR, fbL, fbR, rootOscs};
+}
+
+function shimmerAt(ac, core, when, rng){
+  const o = ac.createOscillator(); o.type='sine';
+  const harmonics=[4,5,6,8,9,10,12];
+  o.frequency.value = ROOT*harmonics[Math.floor(rng()*harmonics.length)]
+                      * (rng()<0.15 ? 1.01 : 1);
+  const g = ac.createGain(); g.gain.value=0;
+  const dur = 8+rng()*14;
+  g.gain.linearRampToValueAtTime(0.02+rng()*0.03, when+dur/2);
+  g.gain.linearRampToValueAtTime(0, when+dur);
+  const pan = ac.createStereoPanner(); pan.pan.value=rng()*1.6-0.8;
+  o.connect(g).connect(pan).connect(core.delayL);
+  o.start(when); o.stop(when+dur+0.1);
+}
+
+function cosmicAt(ac, core, when, rng){
+  const o = ac.createOscillator(); o.type='sine';
+  const start = 80+rng()*160;
+  o.frequency.setValueAtTime(start, when);
+  o.frequency.exponentialRampToValueAtTime(
+    start*(rng()<0.5 ? 0.35 : 2.8), when+6+rng()*6);
+  const g = ac.createGain(); g.gain.value=0;
+  g.gain.linearRampToValueAtTime(0.05, when+3);
+  g.gain.linearRampToValueAtTime(0, when+12);
+  const pan = ac.createStereoPanner();
+  pan.pan.setValueAtTime(rng()*2-1, when);
+  pan.pan.linearRampToValueAtTime(rng()*2-1, when+12);
+  o.connect(g).connect(pan).connect(core.delayL);
+  o.start(when); o.stop(when+13);
+}
+
+function gearShiftAt(ac, core, when, targetHz){
+  const o = ac.createOscillator(); o.type='sawtooth';
+  o.frequency.setValueAtTime(16, when);
+  o.frequency.exponentialRampToValueAtTime(targetHz, when+1.6);
+  const g = ac.createGain();
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.exponentialRampToValueAtTime(0.22, when+0.4);
+  g.gain.setValueAtTime(0.22, when+1.6);
+  g.gain.exponentialRampToValueAtTime(0.0001, when+3.2);
+  o.connect(g).connect(core.lp);
+  o.start(when); o.stop(when+3.3);
+}
+
+// ---- live audio ----
+let audioStarted = false;
+let audioWarp = null;
+function startAudio(){
+  if(audioStarted) return; audioStarted = true;
+  const AC = new (window.AudioContext||window.webkitAudioContext)();
+  const rng = mulberry32(rideSeed>>>0);
+  const core = buildCore(AC, rng);
+
+  function glideRoot(){
+    const target = ROOT * (0.94 + rng()*0.12);
+    const dur = 20 + rng()*40;
+    for(const v of core.rootOscs)
+      v.osc.frequency.exponentialRampToValueAtTime(target*v.ratio, AC.currentTime+dur);
+    setTimeout(glideRoot, dur*1000);
+  }
+  glideRoot();
+
+  (function shimmer(){
+    shimmerAt(AC, core, AC.currentTime, rng);
+    setTimeout(shimmer, (4+rng()*10)*1000);
+  })();
+
+  setTimeout(function cosmic(){
+    cosmicAt(AC, core, AC.currentTime, rng);
+    setTimeout(cosmic, (45+rng()*90)*1000);
+  }, 20000);
+
+  audioWarp = on => {
+    const tc = on ? 0.4 : 2.5;
+    core.fbL.gain.setTargetAtTime(on ? 0.88 : 0.42, AC.currentTime, tc);
+    core.fbR.gain.setTargetAtTime(on ? 0.88 : 0.42, AC.currentTime, tc);
+    core.lp.frequency.setTargetAtTime(on ? 4200 : 900, AC.currentTime, tc);
+    if(on) gearShiftAt(AC, core, AC.currentTime, core.rootOscs[0].osc.frequency.value);
+  };
+}
+
+// ---- offline audio render ----
+// Mirrors the live bed, but every event is placed at an absolute time from the
+// same seeded PRNG, so the WAV lines up with the PNG sequence frame for frame.
+async function renderWav(seconds, seed, fps, onProgress){
+  const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  const rate = 44100;
+  const ac = new OAC(2, Math.ceil(seconds*rate), rate);
+  const rng = mulberry32(seed>>>0);
+  const core = buildCore(ac, rng);
+
+  // root glides
+  let tt = 0;
+  while(tt < seconds){
+    const target = ROOT * (0.94 + rng()*0.12);
+    const dur = 20 + rng()*40;
+    for(const v of core.rootOscs)
+      v.osc.frequency.exponentialRampToValueAtTime(target*v.ratio, Math.min(seconds, tt+dur));
+    tt += dur;
+  }
+  // shimmers
+  tt = 0;
+  while(tt < seconds){ shimmerAt(ac, core, tt, rng); tt += 4+rng()*10; }
+  // cosmic events
+  tt = 20;
+  while(tt < seconds){ cosmicAt(ac, core, tt, rng); tt += 45+rng()*90; }
+
+  // warp automation, sampled from the lane at 30Hz; rising edges fire a gear shift
+  const WL = LANES.find(l=>l.id==='warp');
+  if(WL.mode!=='auto'){
+    const step = 1/30;
+    let prev = 0, engaged = false;
+    for(let x=0; x<seconds; x+=step){
+      const u = ((x/rideDur) % 1 + 1) % 1;
+      const v = laneSample(WL, u);
+      if(v>0.5 && !engaged){
+        engaged = true;
+        core.fbL.gain.setTargetAtTime(0.88, x, 0.4);
+        core.fbR.gain.setTargetAtTime(0.88, x, 0.4);
+        core.lp.frequency.setTargetAtTime(4200, x, 0.4);
+        gearShiftAt(ac, core, x, ROOT);
+      } else if(v<=0.5 && engaged){
+        engaged = false;
+        core.fbL.gain.setTargetAtTime(0.42, x, 2.5);
+        core.fbR.gain.setTargetAtTime(0.42, x, 2.5);
+        core.lp.frequency.setTargetAtTime(900, x, 2.5);
+      }
+      prev = v;
+    }
+  }
+
+  if(onProgress) onProgress(0.1);
+  const buf = await ac.startRendering();
+  if(onProgress) onProgress(0.9);
+  return pcmToWav([buf.getChannelData(0), buf.getChannelData(1)], buf.length, rate);
+}
+
+// 16-bit stereo PCM WAV. Scaled down if the mix would clip (never scaled up).
+function pcmToWav(chans, len, rate){
+  const numCh = chans.length;
+  let peak = 0;
+  for(let c=0;c<numCh;c++){
+    const d = chans[c];
+    for(let i=0;i<len;i++){ const v = Math.abs(d[i]); if(v>peak) peak=v; }
+  }
+  const scale = peak > 0.99 ? 0.99/peak : 1;
+  const blockAlign = numCh*2;
+  const dataLen = len*blockAlign;
+  const ab = new ArrayBuffer(44+dataLen);
+  const view = new DataView(ab);
+  const str = (off,s)=>{ for(let i=0;i<s.length;i++) view.setUint8(off+i, s.charCodeAt(i)); };
+  str(0,'RIFF'); view.setUint32(4, 36+dataLen, true); str(8,'WAVE');
+  str(12,'fmt '); view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,numCh,true);
+  view.setUint32(24,rate,true); view.setUint32(28,rate*blockAlign,true);
+  view.setUint16(32,blockAlign,true); view.setUint16(34,16,true);
+  str(36,'data'); view.setUint32(40,dataLen,true);
+  let off=44;
+  for(let i=0;i<len;i++){
+    for(let c=0;c<numCh;c++){
+      const s = Math.max(-1, Math.min(1, chans[c][i]*scale));
+      view.setInt16(off, s<0 ? s*0x8000 : s*0x7fff, true);
+      off+=2;
+    }
+  }
+  return new Blob([ab], {type:'audio/wav'});
+}
+
+// ============================================================================
+// EXPORT
+// Frame-driven, not clock-driven: each frame is rendered to an OffscreenCanvas
+// at full export resolution and written to disk before the next one starts, so
+// a 4K frame can take as long as it needs without dropping or duplicating.
+// ============================================================================
+function exportSupported(){
+  return 'showDirectoryPicker' in window && typeof OffscreenCanvas !== 'undefined';
+}
+
+const FORMATS = {
+  webp: {mime:'image/webp', quality:0.95, ext:'webp'},
+  png:  {mime:'image/png',                ext:'png'},
+  jpeg: {mime:'image/jpeg', quality:0.95, ext:'jpg'}
+};
+
+// Encoding a 4K frame costs seconds while painting one costs under a
+// millisecond, so the encoder — not the renderer — is the bottleneck. Frames
+// are handed to a pool of workers that encode in parallel; the main thread
+// stays free to paint the next frame and write finished blobs to disk.
+const WORKER_SRC = `self.onmessage = async e => {
+  const {bmp, id, mime, quality} = e.data;
+  const cv = new OffscreenCanvas(bmp.width, bmp.height);
+  cv.getContext('2d').drawImage(bmp, 0, 0);
+  bmp.close();
+  const opts = quality != null ? {type:mime, quality} : {type:mime};
+  self.postMessage({id, blob: await cv.convertToBlob(opts)});
+};`;
+
+function makeEncoderPool(n){
+  const url = URL.createObjectURL(new Blob([WORKER_SRC], {type:'text/javascript'}));
+  const workers = Array.from({length:n}, ()=>new Worker(url));
+  let next = 0, seq = 0;
+  return {
+    size: n,
+    encode(bmp, fmt){
+      const wk = workers[next++ % n];
+      const id = seq++;
+      return new Promise((res, rej)=>{
+        const h = e=>{
+          if(e.data.id!==id) return;
+          wk.removeEventListener('message', h);
+          res(e.data.blob);
+        };
+        wk.addEventListener('message', h);
+        wk.addEventListener('error', rej, {once:true});
+        wk.postMessage({bmp, id, mime:fmt.mime, quality:fmt.quality}, [bmp]);
+      });
+    },
+    dispose(){ workers.forEach(w=>w.terminate()); URL.revokeObjectURL(url); }
+  };
+}
+
+let exportCancelled = false;
+
+// Paints one frame into the persistent scene canvas and returns the canvas
+// whose pixels should be encoded (inverting into a scratch canvas when warp is
+// engaged, so the inversion never feeds back into the motion trails).
+function renderExportFrame(sim, f, fps, scene, sctx, out, octx, W, H){
+  stepSim(sim, f, fps, false);
+  paint(sctx, W, H, sim);
+  if(sim.warp > 0.001){
+    octx.globalCompositeOperation = 'source-over';
+    octx.globalAlpha = 1;
+    octx.drawImage(scene, 0, 0);
+    applyInvert(octx, W, H, sim.warp);
+    return out;
+  }
+  return scene;
+}
+
+function makeExportCanvases(W,H){
+  const scene = new OffscreenCanvas(W,H);
+  const sctx = scene.getContext('2d');
+  const out = new OffscreenCanvas(W,H);
+  const octx = out.getContext('2d');
+  sctx.fillStyle = '#000'; sctx.fillRect(0,0,W,H);
+  return {scene, sctx, out, octx};
+}
+
+// Renders and encodes a single frame deep enough into the ride to be
+// representative, to predict total time and disk use before committing.
+async function estimateExport(W, H, fps, seconds, fmtKey){
+  const fmt = FORMATS[fmtKey];
+  const seed = +document.getElementById('xseed').value || 0;
+  const {scene, sctx, out, octx} = makeExportCanvases(W,H);
+  const sim = makeSim(seed);
+  for(let f=-PREROLL; f<0; f++){ stepSim(sim,f,fps,false); paint(sctx,W,H,sim); }
+  const t0 = performance.now();
+  const src = renderExportFrame(sim, 0, fps, scene, sctx, out, octx, W, H);
+  const opts = fmt.quality!=null ? {type:fmt.mime, quality:fmt.quality} : {type:fmt.mime};
+  const blob = await src.convertToBlob(opts);
+  const perFrameMs = performance.now()-t0;
+  const total = Math.round(seconds*fps);
+  const workers = Math.max(1, Math.min(6, (navigator.hardwareConcurrency||4)-2));
+  return {
+    total,
+    bytes: blob.size*total,
+    // encoding parallelises across the pool; assume ~75% scaling efficiency
+    etaMs: (perFrameMs*total)/Math.max(1, workers*0.75)
+  };
+}
+
+async function exportFrames(W, H, fps, seconds, fmtKey, onProgress){
+  const fmt = FORMATS[fmtKey];
+  const dir = await window.showDirectoryPicker({mode:'readwrite'});
+  const {scene, sctx, out, octx} = makeExportCanvases(W,H);
+
+  const seed = +document.getElementById('xseed').value || 0;
+  const sim = makeSim(seed);
+
+  // pre-roll so frame 0 already carries motion trails
+  for(let f=-PREROLL; f<0; f++){ stepSim(sim,f,fps,false); paint(sctx,W,H,sim); }
+
+  const total = Math.round(seconds*fps);
+  const startedAt = performance.now();
+  const pool = makeEncoderPool(Math.max(1, Math.min(6, (navigator.hardwareConcurrency||4)-2)));
+
+  let done = 0, failure = null;
+  const inflight = new Set();
+
+  try{
+    for(let f=0; f<total; f++){
+      if(exportCancelled || failure) break;
+
+      const src = renderExportFrame(sim, f, fps, scene, sctx, out, octx, W, H);
+      const bmp = await createImageBitmap(src);
+      const name = `braindead_${String(f).padStart(5,'0')}.${fmt.ext}`;
+
+      const job = pool.encode(bmp, fmt).then(async blob=>{
+        const handle = await dir.getFileHandle(name, {create:true});
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        done++;
+        const elapsed = performance.now()-startedAt;
+        onProgress({done, total, etaMs:(elapsed/done)*(total-done)});
+      }).catch(err=>{ failure = failure || err; });
+
+      inflight.add(job);
+      job.finally(()=>inflight.delete(job));
+      // Bound in-flight work: unbounded dispatch would queue thousands of
+      // 33MB bitmaps and exhaust memory long before the encoders caught up.
+      if(inflight.size >= pool.size) await Promise.race(inflight);
+    }
+    await Promise.all(inflight);
+  } finally {
+    pool.dispose();
+  }
+
+  if(failure) throw failure;
+  return {total:done, cancelled:exportCancelled};
+}
+
+// ============================================================================
+// VIDEO EXPORT (WebCodecs)
+// Frame-driven like the sequence export — we hand the encoder frames with
+// explicit timestamps, so it never drops or duplicates no matter how slow the
+// encode is. (This is the crucial difference from MediaRecorder +
+// captureStream, which records in wall-clock time and silently drops frames
+// when a 4K render can't keep up.)
+//
+// Browsers can't mux MP4 without a library, so we write the codec's own
+// elementary stream instead and let ffmpeg mux it — which the soundtrack
+// already requires. H.264 goes out as Annex-B; VP9/AV1 go into IVF, a
+// 32-byte-header container that is trivial to write and that ffmpeg reads.
+// ============================================================================
+const VCODECS = {
+  h264: {codec:'avc1.640034', ext:'h264', annexb:true},
+  vp9:  {codec:'vp09.00.51.08', ext:'ivf', fourcc:'VP90'},
+  av1:  {codec:'av01.0.13M.08', ext:'ivf', fourcc:'AV01'}
+};
+
+function videoExportSupported(){
+  return typeof VideoEncoder !== 'undefined' && 'showSaveFilePicker' in window;
+}
+
+function ivfHeader(fourcc, W, H, fps, frameCount){
+  const b = new ArrayBuffer(32), v = new DataView(b);
+  const s = (o,str)=>{ for(let i=0;i<str.length;i++) v.setUint8(o+i, str.charCodeAt(i)); };
+  s(0,'DKIF');
+  v.setUint16(4,0,true);            // version
+  v.setUint16(6,32,true);           // header length
+  s(8,fourcc);
+  v.setUint16(12,W,true); v.setUint16(14,H,true);
+  v.setUint32(16,fps,true);         // timebase denominator
+  v.setUint32(20,1,true);           // timebase numerator
+  v.setUint32(24,frameCount,true);
+  v.setUint32(28,0,true);
+  return new Uint8Array(b);
+}
+function ivfFrameHeader(size, pts){
+  const b = new ArrayBuffer(12), v = new DataView(b);
+  v.setUint32(0,size,true);
+  v.setUint32(4, pts>>>0, true);
+  v.setUint32(8, Math.floor(pts/4294967296), true);
+  return new Uint8Array(b);
+}
+
+async function exportVideo(W, H, fps, seconds, codecKey, mbps, onProgress){
+  const spec = VCODECS[codecKey];
+  const total = Math.round(seconds*fps);
+  const handle = await window.showSaveFilePicker({
+    suggestedName: `braindead.${spec.ext}`,
+    types: [{description:'video elementary stream', accept:{'application/octet-stream':['.'+spec.ext]}}]
+  });
+  const writable = await handle.createWritable();
+  if(spec.fourcc) await writable.write(ivfHeader(spec.fourcc, W, H, fps, total));
+
+  const {scene, sctx, out, octx} = makeExportCanvases(W,H);
+  const seed = +document.getElementById('xseed').value || 0;
+  const sim = makeSim(seed);
+  for(let f=-PREROLL; f<0; f++){ stepSim(sim,f,fps,false); paint(sctx,W,H,sim); }
+
+  let encErr = null, written = 0, bytes = 0;
+  const pending = [];
+  const encoder = new VideoEncoder({
+    output: chunk => pending.push(chunk),
+    error: e => { encErr = e; }
+  });
+  const cfg = {codec:spec.codec, width:W, height:H,
+               bitrate:Math.round(mbps*1_000_000), framerate:fps,
+               latencyMode:'quality'};
+  if(spec.annexb) cfg.avc = {format:'annexb'};
+  encoder.configure(cfg);
+
+  const startedAt = performance.now();
+  // Chunks arrive in decode order, which is exactly the order an elementary
+  // stream wants, so they can be written straight through as they appear.
+  async function drain(){
+    while(pending.length){
+      const c = pending.shift();
+      const buf = new Uint8Array(c.byteLength);
+      c.copyTo(buf);
+      if(spec.fourcc) await writable.write(ivfFrameHeader(buf.byteLength, written));
+      await writable.write(buf);
+      bytes += buf.byteLength;
+      written++;
+      const elapsed = performance.now()-startedAt;
+      onProgress({done:written, total, bytes, etaMs:(elapsed/written)*(total-written)});
+    }
+  }
+
+  try{
+    for(let f=0; f<total; f++){
+      if(exportCancelled || encErr) break;
+      const src = renderExportFrame(sim, f, fps, scene, sctx, out, octx, W, H);
+      const frame = new VideoFrame(src, {
+        timestamp: Math.round(f*1e6/fps),
+        duration:  Math.round(1e6/fps)
+      });
+      encoder.encode(frame, {keyFrame: f % (fps*2) === 0});
+      frame.close();
+      // Backpressure: let the encoder catch up rather than queueing 4K frames.
+      while(encoder.encodeQueueSize > 6) await new Promise(r=>setTimeout(r,0));
+      await drain();
+    }
+    if(!encErr) await encoder.flush();
+    await drain();
+  } finally {
+    try{ encoder.close(); }catch(e){}
+    await writable.close();
+  }
+  if(encErr) throw encErr;
+  return {total:written, bytes, cancelled:exportCancelled, ext:spec.ext};
+}
+
+function downloadBlob(blob, name){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 10000);
+}
+
+// ============================================================================
+// WARP / THROTTLE INPUT
+// ============================================================================
+const designerEl = document.getElementById('designer');
+function warpOn(){
+  if(!designerEl.classList.contains('gone')) return;
+  liveWarpTarget = 1;
+  if(audioWarp) audioWarp(true);
+}
+function warpOff(){
+  liveWarpTarget = 0;
+  if(audioWarp) audioWarp(false);
+}
+window.addEventListener('mousedown', warpOn);
+window.addEventListener('mouseup', warpOff);
+window.addEventListener('touchstart', warpOn, {passive:true});
+window.addEventListener('touchend', warpOff);
+window.addEventListener('blur', warpOff);
+window.addEventListener('keydown', e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT') return;
+  if(e.key==='ArrowRight') throttleTarget = Math.min(5, throttleTarget*1.25);
+  if(e.key==='ArrowLeft')  throttleTarget = Math.max(0.15, throttleTarget/1.25);
+  if(e.key==='d'||e.key==='D') designerEl.classList.toggle('gone');
+});
+
+// ============================================================================
+// DESIGNER UI
+// ============================================================================
+const lanesEl = document.getElementById('lanes');
+
+for(const L of LANES){
+  const row = document.createElement('div'); row.className='lane';
+  const side = document.createElement('div'); side.className='side';
+  const nm = document.createElement('div'); nm.className='name'; nm.textContent=L.label;
+  const modes = document.createElement('div'); modes.className='modes';
+  for(const m of ['auto','keys','lfo']){
+    const b = document.createElement('button'); b.textContent=m;
+    b.onclick = ()=>{ L.mode=m; renderModes(L); renderLane(L); };
+    modes.appendChild(b); (L.modeBtns=L.modeBtns||{})[m]=b;
+  }
+  side.appendChild(nm); side.appendChild(modes);
+  const cv = document.createElement('canvas');
+  row.appendChild(side); row.appendChild(cv);
+  lanesEl.appendChild(row);
+  L.cv = cv;
+  renderModes(L);
+
+  let dragKey = null, dragging = false;
+  const pos = e=>{
+    const r = cv.getBoundingClientRect();
+    const x = ((e.touches?e.touches[0].clientX:e.clientX)-r.left)/r.width;
+    const y = ((e.touches?e.touches[0].clientY:e.clientY)-r.top)/r.height;
+    return {u:Math.min(1,Math.max(0,x)), v:Math.min(1,Math.max(0,1-y))};
+  };
+  const down = e=>{
+    e.preventDefault(); e.stopPropagation();
+    const p = pos(e);
+    dragging = true;
+    if(L.mode==='auto'){ L.mode='keys'; renderModes(L); }
+    if(L.mode==='keys'){
+      dragKey = L.keys.find(k=>Math.abs(k.t-p.u)<0.03 && Math.abs(k.v-p.v)<0.18);
+      if(!dragKey){
+        dragKey = {t:p.u, v:p.v};
+        L.keys.push(dragKey);
+        L.keys.sort((a,b)=>a.t-b.t);
+      }
+    }
+    move(e);
+  };
+  const move = e=>{
+    if(!dragging) return;
+    const p = pos(e);
+    if(L.mode==='keys' && dragKey){
+      dragKey.t = p.u; dragKey.v = p.v;
+      L.keys.sort((a,b)=>a.t-b.t);
+    } else if(L.mode==='lfo'){
+      L.lfo.cycles = Math.max(1, Math.round(1 + p.u*23));
+      L.lfo.depth  = p.v;
+    }
+    renderLane(L);
+  };
+  const up = ()=>{ dragging=false; dragKey=null; };
+  cv.addEventListener('mousedown', down);
+  cv.addEventListener('dblclick', e=>{
+    if(L.mode!=='keys' || L.keys.length<2) return;
+    const p = pos(e);
+    const i = L.keys.findIndex(k=>Math.abs(k.t-p.u)<0.03 && Math.abs(k.v-p.v)<0.18);
+    if(i>=0){ L.keys.splice(i,1); renderLane(L); }
+  });
+  cv.addEventListener('touchstart', down, {passive:false});
+  window.addEventListener('mousemove', move);
+  window.addEventListener('touchmove', move);
+  window.addEventListener('mouseup', up);
+  window.addEventListener('touchend', up);
+}
+
+function renderModes(L){
+  for(const m in L.modeBtns) L.modeBtns[m].classList.toggle('on', L.mode===m);
+}
+
+function renderLane(L){
+  const cv = L.cv;
+  const r = cv.getBoundingClientRect();
+  if(cv.width!==r.width*2){ cv.width=r.width*2; cv.height=r.height*2; }
+  const g = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  g.clearRect(0,0,W,H);
+
+  g.strokeStyle = 'rgba(255,255,255,0.07)';
+  g.lineWidth = 1;
+  for(let i=1;i<4;i++){ g.beginPath(); g.moveTo(W*i/4,0); g.lineTo(W*i/4,H); g.stroke(); }
+  g.beginPath(); g.moveTo(0,H/2); g.lineTo(W,H/2); g.stroke();
+
+  if(L.mode==='auto'){
+    g.font = `${H*0.28}px Georgia`;
+    g.fillStyle = 'rgba(180,160,220,0.35)';
+    g.textAlign='center'; g.textBaseline='middle';
+    g.fillText(L.id==='warp' ? '~ live ~' : '~ auto ~', W/2, H/2);
+    return;
+  }
+
+  g.beginPath();
+  for(let x=0;x<=100;x++){
+    const v = laneSample(L, x/100);
+    const px = W*x/100, py = H*(1-v);
+    if(x===0) g.moveTo(px,py); else g.lineTo(px,py);
+  }
+  g.strokeStyle = L.stepped ? '#ffb3fa' : (L.id==='warp' ? '#f8a' : '#9ff');
+  g.lineWidth = 3;
+  g.stroke();
+
+  if(L.stepped){
+    g.font = `${H*0.18}px monospace`;
+    g.fillStyle='rgba(255,180,250,0.5)'; g.textAlign='left'; g.textBaseline='top';
+    const names=['ghost','flare','jagged','chroma','polygon','glyphs','upstream','neon'];
+    g.fillText(names[Math.floor(laneSample(L,0)*7.999)], 8, 6);
+  }
+
+  if(L.mode==='keys'){
+    g.fillStyle = '#fff';
+    for(const k of L.keys){
+      g.beginPath(); g.arc(W*k.t, H*(1-k.v), 7, 0, TAU); g.fill();
+    }
+  } else {
+    g.font = `${H*0.2}px monospace`;
+    g.fillStyle='rgba(150,255,255,0.5)'; g.textAlign='right'; g.textBaseline='top';
+    g.fillText(`${L.lfo.cycles} cyc  ${Math.round(L.lfo.depth*100)}%`, W-8, 6);
+  }
+}
+
+function renderAll(){ for(const L of LANES) renderLane(L); }
+requestAnimationFrame(renderAll);
+
+// ---- random ride generators ----
+function politeRandom(){
+  for(const L of LANES){
+    if(L.id==='warp'){ L.mode='auto'; renderModes(L); continue; } // stays a live control
+    const roll = Math.random();
+    if(roll<0.3){ L.mode='auto'; }
+    else if(roll<0.8){
+      L.mode='keys';
+      const n = 3+Math.floor(Math.random()*3);
+      L.keys = Array.from({length:n},(_,i)=>({
+        t: i/n + Math.random()*0.5/n,
+        v: 0.25 + Math.random()*0.45
+      })).sort((a,b)=>a.t-b.t);
+    } else {
+      L.mode='lfo';
+      L.lfo = {cycles:1+Math.floor(Math.random()*4), depth:0.2+Math.random()*0.35};
+    }
+    renderModes(L);
+  }
+  const chaos = LANES.find(l=>l.id==='chaos');
+  chaos.mode='keys';
+  chaos.keys=[{t:0,v:0.1+Math.random()*0.25}];
+  renderModes(chaos);
+  renderAll();
+}
+
+function fmsu(){
+  for(const L of LANES){
+    if(Math.random()<0.5){
+      L.mode='keys';
+      const n = 8+Math.floor(Math.random()*8);
+      L.keys = Array.from({length:n},(_,i)=>({
+        t: i/n + Math.random()*0.6/n,
+        v: Math.random()
+      })).sort((a,b)=>a.t-b.t);
+    } else {
+      L.mode='lfo';
+      L.lfo = {cycles:8+Math.floor(Math.random()*17), depth:0.7+Math.random()*0.3};
+    }
+    renderModes(L);
+  }
+  const chaos = LANES.find(l=>l.id==='chaos');
+  chaos.mode='keys';
+  chaos.keys=[{t:0,v:0.85+Math.random()*0.15}];
+  renderModes(chaos);
+  // warp stabs, so the ride slams in and out of inversion
+  const warpL = LANES.find(l=>l.id==='warp');
+  warpL.mode='keys';
+  const n = 5+Math.floor(Math.random()*6);
+  warpL.keys = Array.from({length:n},(_,i)=>({
+    t:i/n + Math.random()*0.5/n,
+    v: Math.random()<0.5 ? 0 : 0.7+Math.random()*0.3
+  })).sort((a,b)=>a.t-b.t);
+  renderModes(warpL);
+  renderAll();
+}
+
+document.getElementById('politeBtn').onclick = politeRandom;
+document.getElementById('fmsuBtn').onclick = fmsu;
+document.getElementById('durSel').onchange = e=>{ rideDur = +e.target.value; };
+document.getElementById('xseed').onchange = resetRide;
+document.getElementById('beginBtn').onclick = ()=>{
+  designerEl.classList.add('gone');
+  resetRide();
+  startAudio();
+  if(document.documentElement.requestFullscreen)
+    document.documentElement.requestFullscreen().catch(()=>{});
+};
+
+// ---- export UI ----
+const xstat = document.getElementById('xstat');
+const xffmpeg = document.getElementById('xffmpeg');
+const xframesBtn = document.getElementById('xframesBtn');
+const xwavBtn = document.getElementById('xwavBtn');
+const xcancelBtn = document.getElementById('xcancelBtn');
+
+if(!exportSupported()){
+  xframesBtn.disabled = true;
+  document.getElementById('xwarn').style.display = 'block';
+}
+
+function fmtTime(ms){
+  const s = Math.round(ms/1000);
+  return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+}
+function fmtBytes(b){
+  return b > 1073741824 ? (b/1073741824).toFixed(1)+' GB' : Math.round(b/1048576)+' MB';
+}
+function exportSettings(){
+  const [W,H] = document.getElementById('xsize').value.split('x').map(Number);
+  const fps = +document.getElementById('xfps').value;
+  const seconds = Math.max(1, +document.getElementById('xdur').value || 1);
+  const fmt = document.getElementById('xfmt').value;
+  return {W,H,fps,seconds,fmt};
+}
+
+document.getElementById('xestBtn').onclick = async ()=>{
+  const {W,H,fps,seconds,fmt} = exportSettings();
+  xstat.textContent = 'probing…';
+  const e = await estimateExport(W,H,fps,seconds,fmt);
+  xstat.textContent = `${e.total} frames  ·  ~${fmtBytes(e.bytes)}  ·  ~${fmtTime(e.etaMs)}`;
+};
+
+xframesBtn.onclick = async ()=>{
+  const {W,H,fps,seconds,fmt} = exportSettings();
+  exportCancelled = false;
+  xframesBtn.disabled = true; xwavBtn.disabled = true; xcancelBtn.disabled = false;
+  xffmpeg.style.display = 'none';
+  xstat.textContent = 'choose a folder…';
+  try{
+    const res = await exportFrames(W,H,fps,seconds,fmt, ({done,total,etaMs})=>{
+      xstat.textContent = `frame ${done}/${total}  ·  ${Math.round(done/total*100)}%  ·  eta ${fmtTime(etaMs)}`;
+    });
+    xstat.textContent = res.cancelled
+      ? `cancelled after ${res.total} frames`
+      : `done — ${res.total} frames at ${W}×${H}`;
+    const ext = FORMATS[fmt].ext;
+    xffmpeg.textContent =
+`# video only
+ffmpeg -framerate ${fps} -i braindead_%05d.${ext} \\
+  -c:v libx264 -pix_fmt yuv420p -crf 16 braindead.mp4
+
+# with the exported soundtrack
+ffmpeg -framerate ${fps} -i braindead_%05d.${ext} -i braindead-audio.wav \\
+  -c:v libx264 -pix_fmt yuv420p -crf 16 -c:a aac -shortest braindead.mp4`;
+    xffmpeg.style.display = 'block';
+  }catch(err){
+    xstat.textContent = err.name==='AbortError' ? 'cancelled' : 'error: '+err.message;
+  }
+  xframesBtn.disabled = false; xwavBtn.disabled = false; xcancelBtn.disabled = true;
+};
+
+xwavBtn.onclick = async ()=>{
+  const {fps,seconds} = exportSettings();
+  const seed = +document.getElementById('xseed').value || 0;
+  xframesBtn.disabled = true; xwavBtn.disabled = true;
+  xstat.textContent = `rendering ${seconds}s of audio…`;
+  try{
+    const blob = await renderWav(seconds, seed, fps, p=>{
+      xstat.textContent = `rendering audio… ${Math.round(p*100)}%`;
+    });
+    downloadBlob(blob, 'braindead-audio.wav');
+    xstat.textContent = `audio done — ${seconds}s wav downloaded`;
+  }catch(err){
+    xstat.textContent = 'audio error: '+err.message;
+  }
+  xframesBtn.disabled = !exportSupported(); xwavBtn.disabled = false;
+};
+
+const xvidBtn = document.getElementById('xvidBtn');
+if(!videoExportSupported()) xvidBtn.disabled = true;
+
+// Bitrate is an absolute budget, not a quality setting — the same figure spread
+// over 4K's four-times-larger frames is markedly worse than at 1080p. These are
+// picked from measured PSNR: at 4K, 800 Mbps gives ~50 dB luma / ~43 dB chroma,
+// which beats WebP q0.95 frames at the same file size. Past roughly double
+// these the encoder saturates and the extra bits are simply discarded.
+const SUGGESTED_MBPS = {'3840x2160':800, '2560x1440':400, '1920x1080':200, '1080x1920':200};
+document.getElementById('xsize').addEventListener('change', e=>{
+  const s = SUGGESTED_MBPS[e.target.value];
+  if(s) document.getElementById('xmbps').value = s;
+});
+
+xvidBtn.onclick = async ()=>{
+  const {W,H,fps,seconds} = exportSettings();
+  const codec = document.getElementById('xcodec').value;
+  const mbps = Math.max(1, +document.getElementById('xmbps').value || 60);
+  exportCancelled = false;
+  xvidBtn.disabled = true; xframesBtn.disabled = true; xwavBtn.disabled = true;
+  xcancelBtn.disabled = false;
+  xffmpeg.style.display = 'none';
+  xstat.textContent = 'choose where to save…';
+  try{
+    const res = await exportVideo(W,H,fps,seconds,codec,mbps, ({done,total,bytes,etaMs})=>{
+      xstat.textContent = `frame ${done}/${total}  ·  ${Math.round(done/total*100)}%  ·  ${fmtBytes(bytes)}  ·  eta ${fmtTime(etaMs)}`;
+    });
+    xstat.textContent = res.cancelled
+      ? `cancelled after ${res.total} frames (${fmtBytes(res.bytes)})`
+      : `done — ${res.total} frames, ${fmtBytes(res.bytes)} at ${W}×${H}`;
+    const inRate = res.ext==='h264' ? `-r ${fps} ` : '';
+    xffmpeg.textContent =
+`# mux with the exported soundtrack (no re-encode of the video)
+ffmpeg ${inRate}-i braindead.${res.ext} -i braindead-audio.wav \\
+  -c:v copy -c:a aac -shortest braindead.mp4
+
+# video only
+ffmpeg ${inRate}-i braindead.${res.ext} -c:v copy braindead.mp4`;
+    xffmpeg.style.display = 'block';
+  }catch(err){
+    xstat.textContent = err.name==='AbortError' ? 'cancelled' : 'error: '+err.message;
+  }
+  xvidBtn.disabled = !videoExportSupported();
+  xframesBtn.disabled = !exportSupported();
+  xwavBtn.disabled = false; xcancelBtn.disabled = true;
+};
+
+xcancelBtn.onclick = ()=>{ exportCancelled = true; xstat.textContent = 'cancelling…'; };
+</script>
+</body>
+</html>
